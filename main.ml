@@ -228,6 +228,72 @@ let rec extract (n: int) (xs: 'a list): 'a list list =
   | x :: rest -> (extract n rest) @ add_to_each x (extract (n - 1) rest))
 
 (* problem 27 *)
+(* (skipped) *)
+let apply_to_firsts (func: 'a -> 'c) (xs: ('a * 'b) list): ('c * 'b) list =
+  List.map (fun ((fst, snd): 'a * 'b) -> (func fst, snd)) xs
+
+let apply_to_seconds (func: 'b -> 'c) (xs: ('a * 'b) list): ('a * 'c) list =
+  List.map (fun ((fst, snd): 'a * 'b) -> (fst, func snd)) xs
+
+let rec extract_with_rest (n: int) (xs: 'a list): ('a list * 'a list) list =
+  if n == 0 then [([], xs)] else
+  if n == (length xs) then [(xs, [])]
+  else (match xs with
+  | [] -> [([], [])]
+  | x :: rest -> (apply_to_seconds (List.cons x) (extract_with_rest  n      rest))
+               @ (apply_to_firsts  (List.cons x) (extract_with_rest (n - 1) rest)))
+
+
+let rec dec_prefix ((bef, aft): ('a list * 'a list)): ('a list * 'a list) =
+  match (bef, aft) with
+  | (_, []) -> ([], [])
+  | ([], a::aft) -> dec_prefix ([a], aft)
+  | (b::bef, a::aft) -> if b >= a then dec_prefix (a::b::bef, aft) else (b::bef, a::aft)
+
+let rec sorted_insert (elem: 'a) (xs: 'a list): 'a list =
+  match xs with
+  | [] -> [elem]
+  | (x::xs) -> if elem < x then (elem::x::xs) else (x::sorted_insert elem xs)
+
+let rec reverse_concat (xs: 'a list) (ys: 'a list): 'a list =
+  match xs with
+  | [] -> ys
+  | (x::xs) -> reverse_concat xs (x::ys)
+
+let next_multi_perm (xs: 'a list): 'a list =
+  let (prefix, r::rest) = dec_prefix ([], xs) in
+  sorted_insert r (reverse_concat prefix rest)
+
+(* problem 28 - part 1 *)
+let length_sort (xs: 'a list list): 'a list list =
+  List.stable_sort (fun (yz: 'b list) (zs: 'b list) -> compare (length yz) (length zs)) xs
+
+(* problem 28 - part 2 *)
+let frequency_sort (xs: 'a list list): 'a list list =
+  let add_freq (xs: (int * int) list) (elem: int): (int * int) list =
+    let rec aux (xs: (int * int) list) (elem: int): bool * (int * int) list =
+      match xs with
+      | [] -> (false, [])
+      | ((k, v)::rest) -> let (added, newlist) = aux rest elem in
+                            if added then (true, (k, v)::newlist) else
+                              if elem = k then (true, (k, v + 1)::rest) else (false, (k, v)::rest)
+
+    in let (inthere, newlist) = aux xs elem
+    in if inthere then newlist else (elem, 1)::newlist
+
+  in let freqs = List.fold_left add_freq [] (List.map length xs)
+  in let rec get_freq (n: int) (fs: (int * int) list): int =
+    match fs with
+    | [] -> 0
+    | ((k, v)::rest) -> if n = k then v else get_freq n rest
+
+  in let rec unzip_firsts (xs: ('a list * int) list): 'a list list =
+    match xs with
+    | [] -> []
+    | ((lst, _)::rest) -> lst :: (unzip_firsts rest)
+
+  in let pairs = List.map (fun (lst: 'a list) -> (lst, get_freq (length lst) freqs)) xs
+  in unzip_firsts (List.sort (fun ((ys, ysn): 'a list * int) ((zs, zsn): 'a list * int) -> compare ysn zsn) pairs)
 
 let () =
   print_endline "Hello, World!"
